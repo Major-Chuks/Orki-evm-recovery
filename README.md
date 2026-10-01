@@ -58,5 +58,5 @@ npm run build
 Kernel v3.3 smart accounts enforce the `onlyEntryPointOrSelf` security modifier. Transactions must be submitted as **ERC-4337 UserOperations** to the EntryPoint contract, which this tool packages and signs automatically.
 
 ### What networks are supported?
-- **Production:** Base, Polygon, Arbitrum One, Optimism, Ethereum Mainnet
+- **Production:** Base, Polygon, Ethereum Mainnet
 - **Testnets:** Base Sepolia, Polygon Amoy, Ethereum Sepolia

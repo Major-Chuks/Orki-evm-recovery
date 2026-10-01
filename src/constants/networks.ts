@@ -2,8 +2,6 @@ import type { NetworkConfig } from '../types';
 import { 
   base, 
   polygon, 
-  arbitrum, 
-  optimism, 
   mainnet, 
   baseSepolia, 
   polygonAmoy, 
@@ -16,6 +14,7 @@ export const ECDSA_VALIDATOR_V3_3 = '0x845ADb2C711129d4f3966735eD98a9F09fC4cE57'
 export const DEFAULT_ZERODEV_PROJECT_ID = '7611e4f4-5b43-433b-80df-80c4ef7fe797';
 
 export const SUPPORTED_NETWORKS: NetworkConfig[] = [
+  // Production mainnets
   {
     id: base.id, // 8453
     name: 'Base Mainnet',
@@ -36,28 +35,6 @@ export const SUPPORTED_NETWORKS: NetworkConfig[] = [
     defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${polygon.id}`,
     usdcAddress: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
     explorerUrl: 'https://polygonscan.com',
-    isTestnet: false,
-  },
-  {
-    id: arbitrum.id, // 42161
-    name: 'Arbitrum One',
-    shortName: 'Arbitrum',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-    rpcUrl: 'https://arb1.arbitrum.io/rpc',
-    defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${arbitrum.id}`,
-    usdcAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-    explorerUrl: 'https://arbiscan.io',
-    isTestnet: false,
-  },
-  {
-    id: optimism.id, // 10
-    name: 'Optimism Mainnet',
-    shortName: 'Optimism',
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-    rpcUrl: 'https://mainnet.optimism.io',
-    defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${optimism.id}`,
-    usdcAddress: '0x0b2C639c5333130877a79e6022630043ff54b4f5',
-    explorerUrl: 'https://optimistic.etherscan.io',
     isTestnet: false,
   },
   {
@@ -110,8 +87,6 @@ export const SUPPORTED_NETWORKS: NetworkConfig[] = [
 export const VIEM_CHAINS: Record<number, Chain> = {
   [base.id]: base,
   [polygon.id]: polygon,
-  [arbitrum.id]: arbitrum,
-  [optimism.id]: optimism,
   [mainnet.id]: mainnet,
   [baseSepolia.id]: baseSepolia,
   [polygonAmoy.id]: polygonAmoy,
