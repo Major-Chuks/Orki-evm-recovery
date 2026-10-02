@@ -6,7 +6,6 @@ import { StepNetworkAccount } from './components/StepNetworkAccount';
 import { StepSignerConnection } from './components/StepSignerConnection';
 import { StepBalancesGas } from './components/StepBalancesGas';
 import { StepExecutionSweep } from './components/StepExecutionSweep';
-
 import {
   connectWallet,
   fetchBalances,
@@ -14,33 +13,53 @@ import {
   executeSweep,
   getNetwork,
 } from './services/recoveryService';
+import { getZeroDevBundlerUrl } from './constants/networks';
 import type { AccountBalances, AssetType, GasMode, SweepResult, SweepStep } from './types';
 
 export function App() {
   const [isRunbookOpen, setIsRunbookOpen] = useState(false);
 
-  // Default to Base Sepolia for easy verification, or first mainnet
+  // Default to Base Sepolia for sandbox verification, or first mainnet
   const [selectedChainId, setSelectedChainId] = useState<number>(84532);
   const currentNetwork = getNetwork(selectedChainId);
 
+  // Configurable ZeroDev Project ID (reads from localStorage or optional .env)
+  const [zerodevProjectId, setZerodevProjectId] = useState<string>(() => {
+    return (
+      (typeof window !== 'undefined' ? localStorage.getItem('orki_zerodev_project_id') : null) ||
+      ((import.meta.env.VITE_ZERODEV_PROJECT_ID as string) || '')
+    );
+  });
+
+  // Gas mode: defaults to native (100% disaster recovery mode)
+  const [gasMode, setGasMode] = useState<GasMode>('native');
+
   // Address states
   const [smartAccountAddress, setSmartAccountAddress] = useState<string>(() => {
-    return localStorage.getItem('orki_recovery_smart_account') || '0xf9eC51c14db80452BeD2691D9B99c76b38FD2ED6';
+    return (typeof window !== 'undefined' ? localStorage.getItem('orki_recovery_smart_account') : null) || '0xf9eC51c14db80452BeD2691D9B99c76b38FD2ED6';
   });
   const [signerAddress, setSignerAddress] = useState<Address | null>(null);
   const [walletChainId, setWalletChainId] = useState<number | null>(null);
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
 
+  // Compute Bundler URL dynamically based on gasMode and configured project ID
+  const computeDefaultBundlerUrl = useCallback((chainId: number, mode: GasMode, pId: string) => {
+    if (mode === 'paymaster' && pId.trim()) {
+      return getZeroDevBundlerUrl(chainId, pId);
+    }
+    const net = getNetwork(chainId);
+    return net.rpcUrl;
+  }, []);
+
   // Network endpoints
   const [rpcUrl, setRpcUrl] = useState<string>(currentNetwork.rpcUrl);
-  const [bundlerUrl, setBundlerUrl] = useState<string>(currentNetwork.defaultBundlerUrl);
+  const [bundlerUrl, setBundlerUrl] = useState<string>(() => {
+    return computeDefaultBundlerUrl(84532, 'native', zerodevProjectId);
+  });
 
   // Balances
   const [balances, setBalances] = useState<AccountBalances | null>(null);
   const [isLoadingBalances, setIsLoadingBalances] = useState<boolean>(false);
-
-  // Gas mode
-  const [gasMode, setGasMode] = useState<GasMode>('paymaster');
 
   // Sweep configuration
   const [assetType, setAssetType] = useState<AssetType>('USDC');
@@ -59,13 +78,30 @@ export function App() {
     setSelectedChainId(chainId);
     const net = getNetwork(chainId);
     setRpcUrl(net.rpcUrl);
-    setBundlerUrl(net.defaultBundlerUrl);
+    setBundlerUrl(computeDefaultBundlerUrl(chainId, gasMode, zerodevProjectId));
     setBalances(null);
+  };
+
+  const handleGasModeChange = (mode: GasMode) => {
+    setGasMode(mode);
+    setBundlerUrl(computeDefaultBundlerUrl(selectedChainId, mode, zerodevProjectId));
+  };
+
+  const handleZerodevProjectIdChange = (id: string) => {
+    setZerodevProjectId(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orki_zerodev_project_id', id);
+    }
+    if (gasMode === 'paymaster') {
+      setBundlerUrl(computeDefaultBundlerUrl(selectedChainId, 'paymaster', id));
+    }
   };
 
   const handleSmartAccountChange = (addr: string) => {
     setSmartAccountAddress(addr);
-    localStorage.setItem('orki_recovery_smart_account', addr);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orki_recovery_smart_account', addr);
+    }
   };
 
   // Fetch balances
@@ -193,6 +229,11 @@ export function App() {
       return;
     }
 
+    if (gasMode === 'paymaster' && !zerodevProjectId.trim() && !bundlerUrl.includes('zerodev.app')) {
+      setErrorMessage('Please enter a ZeroDev Project ID or custom Paymaster URL to use sponsored gas mode, or switch to Self-Funded Native Gas.');
+      return;
+    }
+
     setErrorMessage(null);
     setSweepStep('validating');
 
@@ -274,7 +315,9 @@ export function App() {
             isLoadingBalances={isLoadingBalances}
             onRefreshBalances={loadBalances}
             gasMode={gasMode}
-            onChangeGasMode={setGasMode}
+            onChangeGasMode={handleGasModeChange}
+            zerodevProjectId={zerodevProjectId}
+            onChangeZerodevProjectId={handleZerodevProjectIdChange}
             network={currentNetwork}
             smartAccountAddress={smartAccountAddress}
           />

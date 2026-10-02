@@ -11,7 +11,10 @@ import {
 
 export const ENTRY_POINT_0_7 = '0x0000000071727De22E5E9d8BAf0edAc6f37da032' as const;
 export const ECDSA_VALIDATOR_V3_3 = '0x845ADb2C711129d4f3966735eD98a9F09fC4cE57' as const;
-export const DEFAULT_ZERODEV_PROJECT_ID = '7611e4f4-5b43-433b-80df-80c4ef7fe797';
+
+export function getZeroDevBundlerUrl(chainId: number, projectId: string): string {
+  return `https://rpc.zerodev.app/api/v3/${projectId.trim()}/chain/${chainId}`;
+}
 
 export const SUPPORTED_NETWORKS: NetworkConfig[] = [
   // Production mainnets
@@ -21,7 +24,7 @@ export const SUPPORTED_NETWORKS: NetworkConfig[] = [
     shortName: 'Base',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
     rpcUrl: 'https://mainnet.base.org',
-    defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${base.id}`,
+    defaultBundlerUrl: 'https://mainnet.base.org',
     usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
     explorerUrl: 'https://basescan.org',
     isTestnet: false,
@@ -32,7 +35,7 @@ export const SUPPORTED_NETWORKS: NetworkConfig[] = [
     shortName: 'Polygon',
     nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
     rpcUrl: 'https://polygon-rpc.com',
-    defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${polygon.id}`,
+    defaultBundlerUrl: 'https://polygon-rpc.com',
     usdcAddress: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
     explorerUrl: 'https://polygonscan.com',
     isTestnet: false,
@@ -43,7 +46,7 @@ export const SUPPORTED_NETWORKS: NetworkConfig[] = [
     shortName: 'Ethereum',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
     rpcUrl: 'https://eth.llamarpc.com',
-    defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${mainnet.id}`,
+    defaultBundlerUrl: 'https://eth.llamarpc.com',
     usdcAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     explorerUrl: 'https://etherscan.io',
     isTestnet: false,
@@ -55,7 +58,7 @@ export const SUPPORTED_NETWORKS: NetworkConfig[] = [
     shortName: 'Base Sepolia',
     nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
     rpcUrl: 'https://sepolia.base.org',
-    defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${baseSepolia.id}`,
+    defaultBundlerUrl: 'https://sepolia.base.org',
     usdcAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
     explorerUrl: 'https://sepolia.basescan.org',
     isTestnet: true,
@@ -66,7 +69,7 @@ export const SUPPORTED_NETWORKS: NetworkConfig[] = [
     shortName: 'Polygon Amoy',
     nativeCurrency: { name: 'Amoy POL', symbol: 'POL', decimals: 18 },
     rpcUrl: 'https://rpc-amoy.polygon.technology',
-    defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${polygonAmoy.id}`,
+    defaultBundlerUrl: 'https://rpc-amoy.polygon.technology',
     usdcAddress: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
     explorerUrl: 'https://amoy.polygonscan.com',
     isTestnet: true,
@@ -74,10 +77,10 @@ export const SUPPORTED_NETWORKS: NetworkConfig[] = [
   {
     id: sepolia.id, // 11155111
     name: 'Ethereum Sepolia',
-    shortName: 'Sepolia',
+    shortName: 'Ethereum Sepolia',
     nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
     rpcUrl: 'https://rpc.sepolia.org',
-    defaultBundlerUrl: `https://rpc.zerodev.app/api/v3/${DEFAULT_ZERODEV_PROJECT_ID}/chain/${sepolia.id}`,
+    defaultBundlerUrl: 'https://rpc.sepolia.org',
     usdcAddress: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
     explorerUrl: 'https://sepolia.etherscan.io',
     isTestnet: true,

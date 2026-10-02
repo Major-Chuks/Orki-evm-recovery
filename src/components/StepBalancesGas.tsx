@@ -1,5 +1,5 @@
 import React from 'react';
-import { Coins, Flame, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Coins, Flame, AlertCircle, RefreshCw, CheckCircle2, KeyRound } from 'lucide-react';
 import type { AccountBalances, GasMode, NetworkConfig } from '../types';
 
 interface StepBalancesGasProps {
@@ -8,6 +8,8 @@ interface StepBalancesGasProps {
   onRefreshBalances: () => void;
   gasMode: GasMode;
   onChangeGasMode: (mode: GasMode) => void;
+  zerodevProjectId: string;
+  onChangeZerodevProjectId: (id: string) => void;
   network: NetworkConfig;
   smartAccountAddress: string;
 }
@@ -18,6 +20,8 @@ export const StepBalancesGas: React.FC<StepBalancesGasProps> = ({
   onRefreshBalances,
   gasMode,
   onChangeGasMode,
+  zerodevProjectId,
+  onChangeZerodevProjectId,
   network,
   smartAccountAddress,
 }) => {
@@ -109,10 +113,28 @@ export const StepBalancesGas: React.FC<StepBalancesGasProps> = ({
               </div>
             </div>
             <p className="gas-option-desc">
-              Requests gas fee sponsorship from the configured Paymaster RPC endpoint (e.g. ZeroDev).
+              Requests gas fee sponsorship from ZeroDev or your custom Paymaster RPC endpoint.
             </p>
           </div>
         </div>
+
+        {gasMode === 'paymaster' && (
+          <div className="form-group" style={{ marginTop: 14 }}>
+            <label className="form-label">
+              <KeyRound size={15} /> ZeroDev Project ID (Configurable)
+            </label>
+            <input
+              type="text"
+              value={zerodevProjectId}
+              onChange={(e) => onChangeZerodevProjectId(e.target.value.trim())}
+              placeholder="e.g. 483142ba-671b-4b15-81e0-39695a7f9b2b"
+              className="input-field"
+            />
+            <span className="field-hint">
+              Enter your ZeroDev Project ID to enable gas fee sponsorship, or switch to Self-Funded Native Gas mode for 100% offline recovery.
+            </span>
+          </div>
+        )}
 
         {gasMode === 'native' && isZeroNativeGas && smartAccountAddress && (
           <div className="callout callout-warning" style={{ marginTop: 14 }}>
