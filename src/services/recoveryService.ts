@@ -11,7 +11,7 @@ import {
   isAddress,
   type Address,
 } from 'viem';
-import { createKernelAccount, createKernelAccountClient, createZeroDevPaymasterClient, getUserOperationGasPrice } from '@zerodev/sdk';
+import { createKernelAccount, createKernelAccountClient, createZeroDevPaymasterClient } from '@zerodev/sdk';
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator';
 import { getEntryPoint, KERNEL_V3_3 } from '@zerodev/sdk/constants';
 import { VIEM_CHAINS, ERC20_ABI, SUPPORTED_NETWORKS } from '../constants/networks';
@@ -77,6 +77,21 @@ export async function switchWalletNetwork(chainId: number): Promise<void> {
   }
 }
 
+// Helper to safely call readContract without Viem's EIP-7702 authorizationList typing quirk
+async function readErc20<T>(
+  publicClient: ReturnType<typeof createPublicClient>,
+  params: {
+    address: Address;
+    functionName: 'balanceOf' | 'decimals' | 'symbol';
+    args?: readonly unknown[];
+  }
+): Promise<T> {
+  return (publicClient as unknown as { readContract: (args: unknown) => Promise<T> }).readContract({
+    abi: ERC20_ABI,
+    ...params,
+  });
+}
+
 export async function fetchBalances(
   chainId: number,
   rpcUrl: string,
@@ -96,12 +111,11 @@ export async function fetchBalances(
   let usdcRaw = 0n;
   let usdc = '0.00';
   try {
-    usdcRaw = (await publicClient.readContract({
+    usdcRaw = await readErc20<bigint>(publicClient, {
       address: usdcAddress,
-      abi: ERC20_ABI,
       functionName: 'balanceOf',
       args: [accountAddress],
-    })) as bigint;
+    });
     usdc = formatUnits(usdcRaw, 6);
   } catch (e) {
     console.warn('Failed to fetch USDC balance:', e);
@@ -114,22 +128,19 @@ export async function fetchBalances(
   if (customTokenAddress && isAddress(customTokenAddress)) {
     try {
       const [bal, dec, sym] = await Promise.all([
-        publicClient.readContract({
+        readErc20<bigint>(publicClient, {
           address: customTokenAddress,
-          abi: ERC20_ABI,
           functionName: 'balanceOf',
           args: [accountAddress],
-        }) as Promise<bigint>,
-        publicClient.readContract({
+        }),
+        readErc20<number>(publicClient, {
           address: customTokenAddress,
-          abi: ERC20_ABI,
           functionName: 'decimals',
-        }) as Promise<number>,
-        publicClient.readContract({
+        }),
+        readErc20<string>(publicClient, {
           address: customTokenAddress,
-          abi: ERC20_ABI,
           functionName: 'symbol',
-        }) as Promise<string>,
+        }),
       ]);
       customRaw = bal;
       custom = formatUnits(bal, dec);
@@ -207,14 +218,27 @@ export async function executeSweep(params: SweepParams): Promise<SweepResult> {
     kernelVersion: KERNEL_V3_3,
   });
 
-  const kernelAccount = await createKernelAccount(publicClient, {
-    plugins: {
-      sudo: ecdsaValidator,
-    },
-    entryPoint,
-    kernelVersion: KERNEL_V3_3,
-    address: kernelAddress,
-  });
+  let kernelAccount;
+  try {
+    kernelAccount = await createKernelAccount(publicClient, {
+      plugins: {
+        regular: ecdsaValidator,
+        isPreInstalled: true,
+      },
+      entryPoint,
+      kernelVersion: KERNEL_V3_3,
+      address: kernelAddress,
+    });
+  } catch {
+    kernelAccount = await createKernelAccount(publicClient, {
+      plugins: {
+        sudo: ecdsaValidator,
+      },
+      entryPoint,
+      kernelVersion: KERNEL_V3_3,
+      address: kernelAddress,
+    });
+  }
 
   onStepChange('requesting_signature', 'Constructing withdrawal transaction and requesting wallet signature...');
 
@@ -245,16 +269,14 @@ export async function executeSweep(params: SweepParams): Promise<SweepResult> {
     if (!customTokenAddress || !isAddress(customTokenAddress)) {
       throw new Error('Invalid custom ERC-20 token address');
     }
-    const dec = (await publicClient.readContract({
+    const dec = await readErc20<number>(publicClient, {
       address: customTokenAddress,
-      abi: ERC20_ABI,
       functionName: 'decimals',
-    })) as number;
-    const sym = (await publicClient.readContract({
+    });
+    const sym = await readErc20<string>(publicClient, {
       address: customTokenAddress,
-      abi: ERC20_ABI,
       functionName: 'symbol',
-    })) as string;
+    });
     formattedAsset = sym;
     const parsedAmount = parseUnits(amount, dec);
     call = {
@@ -269,31 +291,48 @@ export async function executeSweep(params: SweepParams): Promise<SweepResult> {
   }
 
   // Configure Client based on Gas Strategy
-  const clientConfig: Parameters<typeof createKernelAccountClient>[0] = {
+  const kernelClient = createKernelAccountClient({
     account: kernelAccount,
     chain,
     bundlerTransport: http(bundlerUrl),
     client: publicClient,
     userOperation: {
       estimateFeesPerGas: async ({ bundlerClient }) => {
-        return getUserOperationGasPrice(bundlerClient);
+        try {
+          const res = (await bundlerClient.request({
+            method: 'zd_getUserOperationGasPrice' as unknown as 'eth_estimateUserOperationGas',
+            params: [] as unknown as never,
+          })) as { standard: { maxFeePerGas: string; maxPriorityFeePerGas: string } };
+          if (res?.standard?.maxFeePerGas) {
+            return {
+              maxFeePerGas: BigInt(res.standard.maxFeePerGas),
+              maxPriorityFeePerGas: BigInt(res.standard.maxPriorityFeePerGas),
+            };
+          }
+        } catch {
+          // Bundler or node does not support zd_getUserOperationGasPrice, fallback to standard fee data
+        }
+        const feeData = await publicClient.estimateFeesPerGas();
+        return {
+          maxFeePerGas: feeData.maxFeePerGas ?? 1000000000n,
+          maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 100000000n,
+        };
       },
     },
-  };
-
-  if (gasMode === 'paymaster') {
-    clientConfig.paymaster = {
-      getPaymasterData: (userOperation) => {
-        const paymaster = createZeroDevPaymasterClient({
-          chain,
-          transport: http(bundlerUrl),
-        });
-        return paymaster.sponsorUserOperation({ userOperation });
-      },
-    };
-  }
-
-  const kernelClient = createKernelAccountClient(clientConfig);
+    ...(gasMode === 'paymaster'
+      ? {
+          paymaster: {
+            getPaymasterData: (userOperation) => {
+              const paymaster = createZeroDevPaymasterClient({
+                chain,
+                transport: http(bundlerUrl),
+              });
+              return paymaster.sponsorUserOperation({ userOperation });
+            },
+          },
+        }
+      : {}),
+  });
 
   onStepChange('submitting_userop', 'Submitting signed UserOperation to ERC-4337 Bundler...');
   const userOpHash = await kernelClient.sendUserOperation({

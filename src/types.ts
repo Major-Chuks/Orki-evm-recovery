@@ -4,7 +4,7 @@ export interface NetworkConfig {
   shortName: string;
   nativeCurrency: { name: string; symbol: string; decimals: number };
   rpcUrl: string;
-  defaultBundlerUrl: string;
+  defaultBundlerUrl?: string;
   usdcAddress: `0x${string}`;
   explorerUrl: string;
   isTestnet: boolean;
